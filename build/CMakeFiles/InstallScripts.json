@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/ubuntu/HPU/encode/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
