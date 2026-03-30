@@ -1,3 +1,0 @@
-/home/ubuntu/HPU/encode/build/CMakeFiles/hpu_parser.dir
-/home/ubuntu/HPU/encode/build/CMakeFiles/edit_cache.dir
-/home/ubuntu/HPU/encode/build/CMakeFiles/rebuild_cache.dir
