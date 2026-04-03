@@ -53,6 +53,9 @@ if(BUILD_TESTING AND HPU_ENABLE_TESTS)
     FetchContent_MakeAvailable(googletest)
 
     include(GoogleTest)
+    add_test(NAME hpu_encode_cli_smoke
+        COMMAND hpu_encode_cli ${CMAKE_CURRENT_SOURCE_DIR}/formatted_hpu_examples.asm)
+
     file(GLOB TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/*_test.cpp)
 
     foreach(test_source IN LISTS TEST_SOURCES)
