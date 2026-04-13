@@ -46,42 +46,60 @@ std::string format_segmented_bits(const hpu::EncodedInstruction& encoded) {
 
     std::ostringstream oss;
     switch (format) {
-        case hpu::Format::kRRR:
-            oss << bits(word, 31, 29) << '|'
-                << bits(word, 28, 26) << '|'
-                << bits(word, 25, 22) << '|'
+        case hpu::Format::kAR3:
+            oss << bits(word, 31, 28) << '|'
+                << bits(word, 27, 25) << '|'
+                << bits(word, 24, 22) << '|'
+                << bits(word, 21, 14) << '|'
+                << bits(word, 13, 10) << '|'
+                << bits(word, 9, 7) << '|'
+                << bits(word, 6, 0)
+                << "   (OPC|pdst|psrc1|OP2|MODE|FLAG|opcode)";
+            break;
+        case hpu::Format::kSTG:
+            oss << bits(word, 31, 28) << '|'
+                << bits(word, 27, 25) << '|'
+                << bits(word, 24, 22) << '|'
                 << bits(word, 21, 18) << '|'
                 << bits(word, 17, 14) << '|'
-                << bits(word, 13, 7) << '|'
+                << bits(word, 13, 10) << '|'
+                << bits(word, 9, 7) << '|'
                 << bits(word, 6, 0)
-                << "   (CLASS|OP|prd|prs1|prs2|FLAG|opcode)";
+                << "   (OPC|pdst|psrc|IDX0|IDX1|MODE|FLAG|opcode)";
             break;
         case hpu::Format::kCFG:
-            oss << bits(word, 31, 29) << '|'
-                << bits(word, 28, 26) << '|'
-                << bits(word, 25, 22) << '|'
-                << bits(word, 21, 18) << '|'
-                << bits(word, 17, 7) << '|'
-                << bits(word, 6, 0)
-                << "   (CLASS|OP|IDX0|IDX1|CFG|opcode)";
+            if (encoded.instruction.mnemonic == hpu::Mnemonic::kPseed) {
+                oss << bits(word, 31, 28) << '|'
+                    << bits(word, 27, 7) << '|'
+                    << bits(word, 6, 0)
+                    << "   (OPC|IMM21|opcode)";
+            } else {
+                oss << bits(word, 31, 28) << '|'
+                    << bits(word, 27, 25) << '|'
+                    << bits(word, 24, 22) << '|'
+                    << bits(word, 21, 7) << '|'
+                    << bits(word, 6, 0)
+                    << "   (OPC|IDX0|IDX1|CFG|opcode)";
+            }
             break;
-        case hpu::Format::kMEM:
-            oss << bits(word, 31, 29) << '|'
-                << bits(word, 28, 27) << '|'
-                << bits(word, 26, 26) << '|'
-                << bits(word, 25, 22) << '|'
-                << bits(word, 21, 7) << '|'
+        case hpu::Format::kSYNC:
+            oss << bits(word, 31, 28) << '|'
+                << bits(word, 27, 23) << '|'
+                << bits(word, 22, 20) << '|'
+                << bits(word, 19, 7) << '|'
                 << bits(word, 6, 0)
-                << "   (CLASS|OP|IE|preg|saddr|opcode)";
+                << "   (OPC|TAG|MODE|RSV|opcode)";
             break;
         case hpu::Format::kDMA:
             oss << bits(word, 31, 25) << '|'
                 << bits(word, 24, 20) << '|'
                 << bits(word, 19, 15) << '|'
-                << bits(word, 14, 12) << '|'
-                << bits(word, 11, 7) << '|'
+                << bits(word, 14, 14) << '|'
+                << bits(word, 13, 12) << '|'
+                << bits(word, 11, 9) << '|'
+                << bits(word, 8, 7) << '|'
                 << bits(word, 6, 0)
-                << "   (funct7|rs2|rs1|funct3|rd|opcode)";
+                << "   (funct7|rs2|rs1|DIR|TYPE|obj_id|RSV2|opcode)";
             break;
     }
     return oss.str();
@@ -93,37 +111,53 @@ std::string format_fields(const hpu::EncodedInstruction& encoded) {
 
     std::ostringstream oss;
     switch (format) {
-        case hpu::Format::kRRR:
-            oss << "CLASS=" << field(word, 31, 29) << '(' << bits(word, 31, 29) << ") "
-                << "OP=" << field(word, 28, 26) << '(' << bits(word, 28, 26) << ") "
-                << "prd=" << field(word, 25, 22) << '(' << bits(word, 25, 22) << ") "
-                << "prs1=" << field(word, 21, 18) << '(' << bits(word, 21, 18) << ") "
-                << "prs2=" << field(word, 17, 14) << '(' << bits(word, 17, 14) << ") "
-                << "FLAG=" << field(word, 13, 7) << '(' << bits(word, 13, 7) << ") "
+        case hpu::Format::kAR3:
+            oss << "OPC=" << field(word, 31, 28) << '(' << bits(word, 31, 28) << ") "
+                << "pdst=" << field(word, 27, 25) << '(' << bits(word, 27, 25) << ") "
+                << "psrc1=" << field(word, 24, 22) << '(' << bits(word, 24, 22) << ") "
+                << "OP2=" << field(word, 21, 14) << '(' << bits(word, 21, 14) << ") "
+                << "MODE=" << field(word, 13, 10) << '(' << bits(word, 13, 10) << ") "
+                << "FLAG=" << field(word, 9, 7) << '(' << bits(word, 9, 7) << ") "
+                << "opcode=" << field(word, 6, 0) << '(' << bits(word, 6, 0) << ')';
+            break;
+        case hpu::Format::kSTG:
+            oss << "OPC=" << field(word, 31, 28) << '(' << bits(word, 31, 28) << ") "
+                << "pdst=" << field(word, 27, 25) << '(' << bits(word, 27, 25) << ") "
+                << "psrc=" << field(word, 24, 22) << '(' << bits(word, 24, 22) << ") "
+                << "IDX0=" << field(word, 21, 18) << '(' << bits(word, 21, 18) << ") "
+                << "IDX1=" << field(word, 17, 14) << '(' << bits(word, 17, 14) << ") "
+                << "MODE=" << field(word, 13, 10) << '(' << bits(word, 13, 10) << ") "
+                << "FLAG=" << field(word, 9, 7) << '(' << bits(word, 9, 7) << ") "
                 << "opcode=" << field(word, 6, 0) << '(' << bits(word, 6, 0) << ')';
             break;
         case hpu::Format::kCFG:
-            oss << "CLASS=" << field(word, 31, 29) << '(' << bits(word, 31, 29) << ") "
-                << "OP=" << field(word, 28, 26) << '(' << bits(word, 28, 26) << ") "
-                << "IDX0=" << field(word, 25, 22) << '(' << bits(word, 25, 22) << ") "
-                << "IDX1=" << field(word, 21, 18) << '(' << bits(word, 21, 18) << ") "
-                << "CFG=" << field(word, 17, 7) << '(' << bits(word, 17, 7) << ") "
-                << "opcode=" << field(word, 6, 0) << '(' << bits(word, 6, 0) << ')';
+            if (encoded.instruction.mnemonic == hpu::Mnemonic::kPseed) {
+                oss << "OPC=" << field(word, 31, 28) << '(' << bits(word, 31, 28) << ") "
+                    << "IMM21=" << field(word, 27, 7) << '(' << bits(word, 27, 7) << ") "
+                    << "opcode=" << field(word, 6, 0) << '(' << bits(word, 6, 0) << ')';
+            } else {
+                oss << "OPC=" << field(word, 31, 28) << '(' << bits(word, 31, 28) << ") "
+                    << "IDX0=" << field(word, 27, 25) << '(' << bits(word, 27, 25) << ") "
+                    << "IDX1=" << field(word, 24, 22) << '(' << bits(word, 24, 22) << ") "
+                    << "CFG=" << field(word, 21, 7) << '(' << bits(word, 21, 7) << ") "
+                    << "opcode=" << field(word, 6, 0) << '(' << bits(word, 6, 0) << ')';
+            }
             break;
-        case hpu::Format::kMEM:
-            oss << "CLASS=" << field(word, 31, 29) << '(' << bits(word, 31, 29) << ") "
-                << "OP=" << field(word, 28, 27) << '(' << bits(word, 28, 27) << ") "
-                << "IE=" << field(word, 26, 26) << '(' << bits(word, 26, 26) << ") "
-                << "preg=" << field(word, 25, 22) << '(' << bits(word, 25, 22) << ") "
-                << "saddr=" << field(word, 21, 7) << '(' << bits(word, 21, 7) << ") "
+        case hpu::Format::kSYNC:
+            oss << "OPC=" << field(word, 31, 28) << '(' << bits(word, 31, 28) << ") "
+                << "TAG=" << field(word, 27, 23) << '(' << bits(word, 27, 23) << ") "
+                << "MODE=" << field(word, 22, 20) << '(' << bits(word, 22, 20) << ") "
+                << "RSV=" << field(word, 19, 7) << '(' << bits(word, 19, 7) << ") "
                 << "opcode=" << field(word, 6, 0) << '(' << bits(word, 6, 0) << ')';
             break;
         case hpu::Format::kDMA:
             oss << "funct7=" << field(word, 31, 25) << '(' << bits(word, 31, 25) << ") "
                 << "rs2=" << field(word, 24, 20) << '(' << bits(word, 24, 20) << ") "
                 << "rs1=" << field(word, 19, 15) << '(' << bits(word, 19, 15) << ") "
-                << "funct3=" << field(word, 14, 12) << '(' << bits(word, 14, 12) << ") "
-                << "rd=" << field(word, 11, 7) << '(' << bits(word, 11, 7) << ") "
+                << "DIR=" << field(word, 14, 14) << '(' << bits(word, 14, 14) << ") "
+                << "TYPE=" << field(word, 13, 12) << '(' << bits(word, 13, 12) << ") "
+                << "obj_id=" << field(word, 11, 9) << '(' << bits(word, 11, 9) << ") "
+                << "RSV2=" << field(word, 8, 7) << '(' << bits(word, 8, 7) << ") "
                 << "opcode=" << field(word, 6, 0) << '(' << bits(word, 6, 0) << ')';
             break;
     }

@@ -2,28 +2,43 @@
 
 #include "hpu/parser.hpp"
 
-TEST(ParserTest, ParsesHexAndDecimalSramAddresses) {
-    const auto decimal = hpu::parse_instruction_line("sload 256, p0");
-    EXPECT_EQ(decimal.saddr, 256);
-    EXPECT_EQ(decimal.prd, 0);
-
-    const auto hex = hpu::parse_instruction_line("sstore.irq p2, 0x300");
-    EXPECT_EQ(hex.saddr, 0x300);
-    EXPECT_EQ(hex.prs1, 2);
-    EXPECT_TRUE(hex.interrupt_enable);
+TEST(ParserTest, ParsesStageInstructionWithFiveOperands) {
+    const auto instruction = hpu::parse_instruction_line("pntt p1, p0, 5, 0, 0");
+    EXPECT_EQ(instruction.mnemonic, hpu::Mnemonic::kPntt);
+    EXPECT_EQ(instruction.pdst, 1);
+    EXPECT_EQ(instruction.psrc1, 0);
+    EXPECT_EQ(instruction.idx0, 5);
+    EXPECT_EQ(instruction.idx1, 0);
+    EXPECT_EQ(instruction.mode, 0);
 }
 
-TEST(ParserTest, ParsesQuotedInlineAsmLine) {
-    const auto inst = hpu::parse_instruction_line("\"pmul p0, p1, p2 \\n\\t\"");
-    EXPECT_EQ(inst.prs1, 0);
-    EXPECT_EQ(inst.prs2, 1);
-    EXPECT_EQ(inst.prd, 2);
+TEST(ParserTest, ParsesCfgAndSyncInstructions) {
+    const auto cfg = hpu::parse_instruction_line("pmodld p2, 0, 0");
+    EXPECT_EQ(cfg.mnemonic, hpu::Mnemonic::kPmodld);
+    EXPECT_EQ(cfg.idx0, 2);
+    EXPECT_EQ(cfg.idx1, 0);
+    EXPECT_EQ(cfg.cfg, 0);
+
+    const auto sync = hpu::parse_instruction_line("psync 7, 3");
+    EXPECT_EQ(sync.mnemonic, hpu::Mnemonic::kPsync);
+    EXPECT_EQ(sync.tag, 7);
+    EXPECT_EQ(sync.mode, 3);
 }
 
-TEST(ParserTest, ParsesCustom1Aliases) {
-    const auto inst = hpu::parse_instruction_line("dma.h2m.irq x10, x11, x12");
-    EXPECT_TRUE(inst.interrupt_enable);
-    EXPECT_EQ(inst.rs1, 10);
-    EXPECT_EQ(inst.rs2, 11);
-    EXPECT_EQ(inst.rd, 12);
+TEST(ParserTest, ParsesInlineAsmAndCustom1AliasesFromSource) {
+    const std::string source = R"(
+__asm__ volatile(
+    "pmodld p2, 0, 0 \n\t"
+    "dload x10, x11, p3, 2 \n\t"
+    "psync 0, 0 \n\t"
+);
+)";
+
+    const auto instructions = hpu::parse_source(source);
+    ASSERT_EQ(instructions.size(), 3U);
+    EXPECT_EQ(instructions[0].mnemonic, hpu::Mnemonic::kPmodld);
+    EXPECT_EQ(instructions[1].mnemonic, hpu::Mnemonic::kDload);
+    EXPECT_EQ(instructions[1].obj_id, 3);
+    EXPECT_EQ(instructions[1].type, 2);
+    EXPECT_EQ(instructions[2].mnemonic, hpu::Mnemonic::kPsync);
 }

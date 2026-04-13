@@ -1,34 +1,50 @@
 #include <gtest/gtest.h>
 
-#include "hpu/assembler.hpp"
+#include "hpu/encoder.hpp"
 
-TEST(Custom0EncoderTest, EncodesRrrInstruction) {
-    const auto encoded = hpu::assemble_line("pmul p0, p1, p2");
-    EXPECT_EQ(encoded.word, 0x0880400BU);
+TEST(Custom0EncoderTest, EncodesAr3ObjectAndImmediateModes) {
+    hpu::Instruction obj {};
+    obj.mnemonic = hpu::Mnemonic::kPmul;
+    obj.pdst = 0;
+    obj.psrc1 = 1;
+    obj.psrc2 = 2;
+    EXPECT_EQ(hpu::encode_instruction(obj), 0x2040800BU);
+
+    hpu::Instruction imm {};
+    imm.mnemonic = hpu::Mnemonic::kPmuli;
+    imm.pdst = 0;
+    imm.psrc1 = 1;
+    imm.imm8 = 7;
+    EXPECT_EQ(hpu::encode_instruction(imm), 0x2041C40BU);
 }
 
-TEST(Custom0EncoderTest, EncodesCfgInstruction) {
-    const auto encoded = hpu::assemble_line("pbcast c3, p4");
-    EXPECT_EQ(encoded.word, 0x150C000BU);
+TEST(Custom0EncoderTest, EncodesStageCfgAndSyncInstructions) {
+    hpu::Instruction stg {};
+    stg.mnemonic = hpu::Mnemonic::kPntt;
+    stg.pdst = 1;
+    stg.psrc1 = 0;
+    stg.idx0 = 5;
+    stg.idx1 = 0;
+    stg.mode = 0;
+    EXPECT_EQ(hpu::encode_instruction(stg), 0x4214000BU);
+
+    hpu::Instruction cfg {};
+    cfg.mnemonic = hpu::Mnemonic::kPmodld;
+    cfg.idx0 = 2;
+    cfg.idx1 = 0;
+    cfg.cfg = 0;
+    EXPECT_EQ(hpu::encode_instruction(cfg), 0xA400000BU);
+
+    hpu::Instruction sync {};
+    sync.mnemonic = hpu::Mnemonic::kPsync;
+    sync.tag = 3;
+    sync.mode = 2;
+    EXPECT_EQ(hpu::encode_instruction(sync), 0xB1A0000BU);
 }
 
-TEST(Custom0EncoderTest, EncodesMemInstructionWithInterrupt) {
-    const auto encoded = hpu::assemble_line("sstore.irq p2, 0x300");
-    EXPECT_EQ(encoded.word, 0xCC81800BU);
-}
-
-TEST(Custom0EncoderTest, EncodesExtendedCfgIndices) {
-    const auto tw = hpu::assemble_line("ptwld 5");
-    EXPECT_EQ(tw.word, 0x4140000BU);
-
-    const auto sh = hpu::assemble_line("pshcfg 12");
-    EXPECT_EQ(sh.word, 0x6300000BU);
-}
-
-TEST(Custom0EncoderTest, EncodesLargeShuffleTemplateIds) {
-    const auto sh18 = hpu::assemble_line("pshcfg 18");
-    EXPECT_EQ(sh18.word, 0x6080008BU);
-
-    const auto sh26 = hpu::assemble_line("pshcfg 26");
-    EXPECT_EQ(sh26.word, 0x6280008BU);
+TEST(Custom0EncoderTest, EncodesSeedImmediate) {
+    hpu::Instruction seed {};
+    seed.mnemonic = hpu::Mnemonic::kPseed;
+    seed.imm21 = 0x15555;
+    EXPECT_EQ(hpu::encode_instruction(seed), 0x80AAAA8BU);
 }

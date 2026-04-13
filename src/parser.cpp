@@ -94,7 +94,7 @@ std::string normalize_line(std::string_view raw_line) {
     }
 
     line = trim(line);
-    if (line == "__asm__ volatile(" || line == "asm volatile(" || line == ");" || line == "(" || line == ")") {
+    if (line == "__asm__ volatile(" || line == "asm volatile(" || line == ");" || line == "(" || line == ")" || line == ":" || line == "," || line == ": \"memory\"") {
         return {};
     }
 
@@ -129,16 +129,23 @@ int parse_base0_int(const std::string& token, const std::string& field_name) {
     return value;
 }
 
-int parse_prefixed_register(const std::string& token,
-                            char prefix,
-                            int max_value,
-                            const std::string& field_name) {
-    if (token.size() < 2 || token.front() != prefix) {
+int parse_pobj(const std::string& token, const std::string& field_name) {
+    if (token.size() < 2 || token.front() != 'p') {
+        throw std::runtime_error("invalid object slot for " + field_name + ": " + token);
+    }
+    const int value = parse_base0_int(token.substr(1), field_name);
+    if (value < 0 || value > 7) {
+        throw std::runtime_error("object slot out of range for " + field_name + ": " + token);
+    }
+    return value;
+}
+
+int parse_xreg(const std::string& token, const std::string& field_name) {
+    if (token.size() < 2 || token.front() != 'x') {
         throw std::runtime_error("invalid register for " + field_name + ": " + token);
     }
-
     const int value = parse_base0_int(token.substr(1), field_name);
-    if (value < 0 || value > max_value) {
+    if (value < 0 || value > 31) {
         throw std::runtime_error("register out of range for " + field_name + ": " + token);
     }
     return value;
@@ -152,178 +159,72 @@ void expect_operand_count(const std::vector<std::string>& operands,
     }
 }
 
-Instruction parse_custom0(const std::string& mnemonic, const std::vector<std::string>& operands) {
+Instruction parse_ar3(Mnemonic mnemonic,
+                      const std::vector<std::string>& operands,
+                      bool immediate_mode) {
+    expect_operand_count(operands, 3, to_string(mnemonic));
+
     Instruction instruction {};
-
-    if (mnemonic == "padd") {
-        expect_operand_count(operands, 3, mnemonic);
-        instruction.mnemonic = Mnemonic::kPadd;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prs2 = parse_prefixed_register(operands[1], 'p', 15, "prs2");
-        instruction.prd = parse_prefixed_register(operands[2], 'p', 15, "prd");
-        return instruction;
+    instruction.mnemonic = mnemonic;
+    instruction.pdst = parse_pobj(operands[0], "pdst");
+    instruction.psrc1 = parse_pobj(operands[1], "psrc1");
+    if (immediate_mode) {
+        instruction.imm8 = parse_base0_int(operands[2], "cimm8");
+    } else {
+        instruction.psrc2 = parse_pobj(operands[2], "psrc2");
     }
-    if (mnemonic == "psub") {
-        expect_operand_count(operands, 3, mnemonic);
-        instruction.mnemonic = Mnemonic::kPsub;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prs2 = parse_prefixed_register(operands[1], 'p', 15, "prs2");
-        instruction.prd = parse_prefixed_register(operands[2], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "pmul") {
-        expect_operand_count(operands, 3, mnemonic);
-        instruction.mnemonic = Mnemonic::kPmul;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prs2 = parse_prefixed_register(operands[1], 'p', 15, "prs2");
-        instruction.prd = parse_prefixed_register(operands[2], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "pmac") {
-        expect_operand_count(operands, 3, mnemonic);
-        instruction.mnemonic = Mnemonic::kPmac;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prs2 = parse_prefixed_register(operands[1], 'p', 15, "prs2");
-        instruction.prd = parse_prefixed_register(operands[2], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "pmov") {
-        expect_operand_count(operands, 2, mnemonic);
-        instruction.mnemonic = Mnemonic::kPmov;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prd = parse_prefixed_register(operands[1], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "pbcast") {
-        expect_operand_count(operands, 2, mnemonic);
-        instruction.mnemonic = Mnemonic::kPbcast;
-        instruction.pcst = parse_prefixed_register(operands[0], 'c', 3, "pcst");
-        instruction.prd = parse_prefixed_register(operands[1], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "pntt") {
-        expect_operand_count(operands, 3, mnemonic);
-        instruction.mnemonic = Mnemonic::kPntt;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prs2 = parse_prefixed_register(operands[1], 'p', 15, "prs2");
-        instruction.prd = parse_prefixed_register(operands[2], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "pintt") {
-        expect_operand_count(operands, 3, mnemonic);
-        instruction.mnemonic = Mnemonic::kPintt;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prs2 = parse_prefixed_register(operands[1], 'p', 15, "prs2");
-        instruction.prd = parse_prefixed_register(operands[2], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "ptwld") {
-        expect_operand_count(operands, 1, mnemonic);
-        instruction.mnemonic = Mnemonic::kPtwld;
-        instruction.ptw = parse_base0_int(operands[0], "ptw");
-        return instruction;
-    }
-    if (mnemonic == "ptwid") {
-        expect_operand_count(operands, 0, mnemonic);
-        instruction.mnemonic = Mnemonic::kPtwid;
-        return instruction;
-    }
-    if (mnemonic == "ptwi2") {
-        expect_operand_count(operands, 0, mnemonic);
-        instruction.mnemonic = Mnemonic::kPtwi2;
-        return instruction;
-    }
-    if (mnemonic == "pshcfg") {
-        expect_operand_count(operands, 1, mnemonic);
-        instruction.mnemonic = Mnemonic::kPshcfg;
-        instruction.pshf = parse_base0_int(operands[0], "pshf");
-        return instruction;
-    }
-    if (mnemonic == "pshuf") {
-        if (operands.size() != 2 && operands.size() != 3) {
-            throw std::runtime_error("unexpected operand count for pshuf");
-        }
-        instruction.mnemonic = Mnemonic::kPshuf;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prd = parse_prefixed_register(operands[1], 'p', 15, "prd");
-        if (operands.size() == 3) {
-            instruction.pshf = parse_base0_int(operands[2], "pshf");
-        }
-        return instruction;
-    }
-    if (mnemonic == "pshuf2") {
-        if (operands.size() != 3 && operands.size() != 4) {
-            throw std::runtime_error("unexpected operand count for pshuf2");
-        }
-        instruction.mnemonic = Mnemonic::kPshuf2;
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.prs2 = parse_prefixed_register(operands[1], 'p', 15, "prs2");
-        instruction.prd = parse_prefixed_register(operands[2], 'p', 15, "prd");
-        if (operands.size() == 4) {
-            instruction.pshf = parse_base0_int(operands[3], "pshf");
-        }
-        return instruction;
-    }
-    if (mnemonic == "pseed") {
-        expect_operand_count(operands, 1, mnemonic);
-        instruction.mnemonic = Mnemonic::kPseed;
-        instruction.pseedid = parse_base0_int(operands[0], "pseedid");
-        return instruction;
-    }
-    if (mnemonic == "psample") {
-        expect_operand_count(operands, 1, mnemonic);
-        instruction.mnemonic = Mnemonic::kPsample;
-        instruction.prd = parse_prefixed_register(operands[0], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "pmodld") {
-        expect_operand_count(operands, 1, mnemonic);
-        instruction.mnemonic = Mnemonic::kPmodld;
-        instruction.pmod = parse_base0_int(operands[0], "pmod");
-        return instruction;
-    }
-    if (mnemonic == "pmodsw") {
-        expect_operand_count(operands, 1, mnemonic);
-        instruction.mnemonic = Mnemonic::kPmodsw;
-        instruction.pmod = parse_base0_int(operands[0], "pmod");
-        return instruction;
-    }
-    if (mnemonic == "sload") {
-        expect_operand_count(operands, 2, mnemonic);
-        instruction.mnemonic = Mnemonic::kSload;
-        instruction.saddr = static_cast<std::uint16_t>(parse_base0_int(operands[0], "saddr"));
-        instruction.prd = parse_prefixed_register(operands[1], 'p', 15, "prd");
-        return instruction;
-    }
-    if (mnemonic == "sstore" || mnemonic == "sstore.irq" || mnemonic == "sstore.i") {
-        expect_operand_count(operands, 2, mnemonic);
-        instruction.mnemonic = Mnemonic::kSstore;
-        instruction.interrupt_enable = (mnemonic != "sstore");
-        instruction.prs1 = parse_prefixed_register(operands[0], 'p', 15, "prs1");
-        instruction.saddr = static_cast<std::uint16_t>(parse_base0_int(operands[1], "saddr"));
-        return instruction;
-    }
-
-    throw std::runtime_error("unsupported mnemonic: " + mnemonic);
+    return instruction;
 }
 
-Instruction parse_dma(const std::string& mnemonic, const std::vector<std::string>& operands) {
-    expect_operand_count(operands, 3, mnemonic);
+Instruction parse_stg(Mnemonic mnemonic, const std::vector<std::string>& operands) {
+    expect_operand_count(operands, 5, to_string(mnemonic));
 
     Instruction instruction {};
-    if (mnemonic == "dma.m2h" || mnemonic == "dma.mem2hpu" || mnemonic == "dma.m2h.irq") {
-        instruction.mnemonic = Mnemonic::kDmaMemToHpu;
-        instruction.interrupt_enable = (mnemonic == "dma.m2h.irq");
-    } else if (mnemonic == "dma.h2m" || mnemonic == "dma.hpu2mem" || mnemonic == "dma.h2m.irq") {
-        instruction.mnemonic = Mnemonic::kDmaHpuToMem;
-        instruction.interrupt_enable = (mnemonic == "dma.h2m.irq");
-    } else {
-        throw std::runtime_error("unsupported DMA mnemonic: " + mnemonic);
+    instruction.mnemonic = mnemonic;
+    instruction.pdst = parse_pobj(operands[0], "pdst");
+    instruction.psrc1 = parse_pobj(operands[1], "psrc");
+    instruction.idx0 = parse_base0_int(operands[2], "idx0");
+    instruction.idx1 = parse_base0_int(operands[3], "idx1");
+    instruction.mode = static_cast<std::uint8_t>(parse_base0_int(operands[4], "mode"));
+    return instruction;
+}
+
+Instruction parse_cfg(Mnemonic mnemonic, const std::vector<std::string>& operands) {
+    Instruction instruction {};
+    instruction.mnemonic = mnemonic;
+
+    if (mnemonic == Mnemonic::kPseed) {
+        expect_operand_count(operands, 1, "pseed");
+        instruction.imm21 = static_cast<std::uint32_t>(parse_base0_int(operands[0], "imm21"));
+        return instruction;
     }
 
-    instruction.rs1 = parse_prefixed_register(operands[0], 'x', 31, "rs1");
-    instruction.rs2 = parse_prefixed_register(operands[1], 'x', 31, "rs2");
-    instruction.rd = parse_prefixed_register(operands[2], 'x', 31, "rd");
+    expect_operand_count(operands, 3, to_string(mnemonic));
+    instruction.idx0 = parse_pobj(operands[0], "idx0");
+    instruction.idx1 = parse_base0_int(operands[1], "idx1");
+    instruction.cfg = static_cast<std::uint16_t>(parse_base0_int(operands[2], "cfg"));
+    return instruction;
+}
+
+Instruction parse_sync(const std::vector<std::string>& operands) {
+    expect_operand_count(operands, 2, "psync");
+
+    Instruction instruction {};
+    instruction.mnemonic = Mnemonic::kPsync;
+    instruction.tag = static_cast<std::uint8_t>(parse_base0_int(operands[0], "tag"));
+    instruction.mode = static_cast<std::uint8_t>(parse_base0_int(operands[1], "mode"));
+    return instruction;
+}
+
+Instruction parse_dma(Mnemonic mnemonic, const std::vector<std::string>& operands) {
+    expect_operand_count(operands, 4, to_string(mnemonic));
+
+    Instruction instruction {};
+    instruction.mnemonic = mnemonic;
+    instruction.rs1 = parse_xreg(operands[0], "rs1");
+    instruction.rs2 = parse_xreg(operands[1], "rs2");
+    instruction.obj_id = static_cast<std::uint8_t>(parse_pobj(operands[2], "obj_id"));
+    instruction.type = static_cast<std::uint8_t>(parse_base0_int(operands[3], mnemonic == Mnemonic::kDload ? "load_type" : "rel"));
     return instruction;
 }
 
@@ -340,11 +241,30 @@ Instruction parse_instruction_line(std::string_view line) {
     const std::string operand_text = split == std::string::npos ? std::string() : normalized.substr(split + 1);
     const std::vector<std::string> operands = split_operands(operand_text);
 
-    if (mnemonic.rfind("dma.", 0) == 0) {
-        return parse_dma(mnemonic, operands);
-    }
+    if (mnemonic == "padd") return parse_ar3(Mnemonic::kPadd, operands, false);
+    if (mnemonic == "paddi") return parse_ar3(Mnemonic::kPaddi, operands, true);
+    if (mnemonic == "psub") return parse_ar3(Mnemonic::kPsub, operands, false);
+    if (mnemonic == "psubi") return parse_ar3(Mnemonic::kPsubi, operands, true);
+    if (mnemonic == "pmul") return parse_ar3(Mnemonic::kPmul, operands, false);
+    if (mnemonic == "pmuli") return parse_ar3(Mnemonic::kPmuli, operands, true);
+    if (mnemonic == "pmac") return parse_ar3(Mnemonic::kPmac, operands, false);
+    if (mnemonic == "pmaci") return parse_ar3(Mnemonic::kPmaci, operands, true);
 
-    return parse_custom0(mnemonic, operands);
+    if (mnemonic == "pntt") return parse_stg(Mnemonic::kPntt, operands);
+    if (mnemonic == "pintt") return parse_stg(Mnemonic::kPintt, operands);
+    if (mnemonic == "pshuf") return parse_stg(Mnemonic::kPshuf, operands);
+    if (mnemonic == "psample") return parse_stg(Mnemonic::kPsample, operands);
+
+    if (mnemonic == "pshcfg") return parse_cfg(Mnemonic::kPshcfg, operands);
+    if (mnemonic == "pseed") return parse_cfg(Mnemonic::kPseed, operands);
+    if (mnemonic == "pmodld") return parse_cfg(Mnemonic::kPmodld, operands);
+
+    if (mnemonic == "psync") return parse_sync(operands);
+
+    if (mnemonic == "dload") return parse_dma(Mnemonic::kDload, operands);
+    if (mnemonic == "dstore") return parse_dma(Mnemonic::kDstore, operands);
+
+    throw std::runtime_error("unsupported mnemonic: " + mnemonic);
 }
 
 std::vector<Instruction> parse_source(std::string_view source) {

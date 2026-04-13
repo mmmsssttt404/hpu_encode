@@ -34,9 +34,9 @@ std::string format_word_bits(std::uint32_t word) {
 
 TEST(CliOutputTest, WritesPlain32BitInstructionFileForAsmInput) {
     const std::string source =
-        "pmodsw 1\n"
-        "sload 0x100, p0\n"
-        "pmul p0, p1, p2\n";
+        "pmodld p2, 0, 0\n"
+        "pmul p0, p1, p2\n"
+        "psync 0, 0\n";
 
     const auto temp_dir = std::filesystem::temp_directory_path();
     const auto asm_path = temp_dir / "hpu_cli_output_test.asm";

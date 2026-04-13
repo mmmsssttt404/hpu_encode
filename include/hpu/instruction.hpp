@@ -6,58 +6,54 @@
 namespace hpu {
 
 enum class Format {
-    kRRR,
+    kAR3,
+    kSTG,
     kCFG,
-    kMEM,
+    kSYNC,
     kDMA,
 };
 
 enum class Mnemonic {
     kPadd,
+    kPaddi,
     kPsub,
+    kPsubi,
     kPmul,
+    kPmuli,
     kPmac,
-    kPmov,
-    kPbcast,
+    kPmaci,
     kPntt,
     kPintt,
-    kPtwld,
-    kPtwid,
-    kPtwi2,
-    kPshcfg,
     kPshuf,
-    kPshuf2,
-    kPseed,
     kPsample,
+    kPshcfg,
+    kPseed,
     kPmodld,
-    kPmodsw,
-    kSload,
-    kSstore,
-    kDmaMemToHpu,
-    kDmaHpuToMem,
+    kPsync,
+    kDload,
+    kDstore,
 };
 
 struct Instruction {
     Mnemonic mnemonic {};
-    bool interrupt_enable = false;
 
-    int prd = -1;
-    int prs1 = -1;
-    int prs2 = -1;
-    int pcst = -1;
+    int pdst = -1;
+    int psrc1 = -1;
+    int psrc2 = -1;
+    int imm8 = -1;
 
-    int ptw = -1;
-    int pshf = -1;
-    int pseedid = -1;
-    int pmod = -1;
-
-    std::uint16_t cfg = 0;
+    int idx0 = -1;
+    int idx1 = -1;
+    std::uint8_t mode = 0;
     std::uint8_t flag = 0;
-    std::uint16_t saddr = 0;
+    std::uint16_t cfg = 0;
+    std::uint32_t imm21 = 0;
+    std::uint8_t tag = 0;
 
     int rs1 = -1;
     int rs2 = -1;
-    int rd = -1;
+    std::uint8_t obj_id = 0;
+    std::uint8_t type = 0;
 };
 
 struct EncodedInstruction {

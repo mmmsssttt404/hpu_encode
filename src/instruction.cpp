@@ -6,16 +6,17 @@
 namespace hpu {
 namespace {
 
-std::string format_preg(int value) {
+std::string format_pobj(int value) {
     return "p" + std::to_string(value);
-}
-
-std::string format_creg(int value) {
-    return "c" + std::to_string(value);
 }
 
 std::string format_xreg(int value) {
     return "x" + std::to_string(value);
+}
+
+bool is_immediate_ar3(Mnemonic mnemonic) {
+    return mnemonic == Mnemonic::kPaddi || mnemonic == Mnemonic::kPsubi ||
+           mnemonic == Mnemonic::kPmuli || mnemonic == Mnemonic::kPmaci;
 }
 
 }  // namespace
@@ -23,27 +24,23 @@ std::string format_xreg(int value) {
 std::string to_string(Mnemonic mnemonic) {
     switch (mnemonic) {
         case Mnemonic::kPadd: return "padd";
+        case Mnemonic::kPaddi: return "paddi";
         case Mnemonic::kPsub: return "psub";
+        case Mnemonic::kPsubi: return "psubi";
         case Mnemonic::kPmul: return "pmul";
+        case Mnemonic::kPmuli: return "pmuli";
         case Mnemonic::kPmac: return "pmac";
-        case Mnemonic::kPmov: return "pmov";
-        case Mnemonic::kPbcast: return "pbcast";
+        case Mnemonic::kPmaci: return "pmaci";
         case Mnemonic::kPntt: return "pntt";
         case Mnemonic::kPintt: return "pintt";
-        case Mnemonic::kPtwld: return "ptwld";
-        case Mnemonic::kPtwid: return "ptwid";
-        case Mnemonic::kPtwi2: return "ptwi2";
-        case Mnemonic::kPshcfg: return "pshcfg";
         case Mnemonic::kPshuf: return "pshuf";
-        case Mnemonic::kPshuf2: return "pshuf2";
-        case Mnemonic::kPseed: return "pseed";
         case Mnemonic::kPsample: return "psample";
+        case Mnemonic::kPshcfg: return "pshcfg";
+        case Mnemonic::kPseed: return "pseed";
         case Mnemonic::kPmodld: return "pmodld";
-        case Mnemonic::kPmodsw: return "pmodsw";
-        case Mnemonic::kSload: return "sload";
-        case Mnemonic::kSstore: return "sstore";
-        case Mnemonic::kDmaMemToHpu: return "dma.m2h";
-        case Mnemonic::kDmaHpuToMem: return "dma.h2m";
+        case Mnemonic::kPsync: return "psync";
+        case Mnemonic::kDload: return "dload";
+        case Mnemonic::kDstore: return "dstore";
     }
 
     throw std::runtime_error("unknown mnemonic");
@@ -52,33 +49,31 @@ std::string to_string(Mnemonic mnemonic) {
 Format instruction_format(Mnemonic mnemonic) {
     switch (mnemonic) {
         case Mnemonic::kPadd:
+        case Mnemonic::kPaddi:
         case Mnemonic::kPsub:
+        case Mnemonic::kPsubi:
         case Mnemonic::kPmul:
+        case Mnemonic::kPmuli:
         case Mnemonic::kPmac:
-        case Mnemonic::kPmov:
+        case Mnemonic::kPmaci:
+            return Format::kAR3;
+
         case Mnemonic::kPntt:
         case Mnemonic::kPintt:
-        case Mnemonic::kPshuf2:
-            return Format::kRRR;
-
-        case Mnemonic::kPbcast:
-        case Mnemonic::kPtwld:
-        case Mnemonic::kPtwid:
-        case Mnemonic::kPtwi2:
-        case Mnemonic::kPshcfg:
         case Mnemonic::kPshuf:
-        case Mnemonic::kPseed:
         case Mnemonic::kPsample:
+            return Format::kSTG;
+
+        case Mnemonic::kPshcfg:
+        case Mnemonic::kPseed:
         case Mnemonic::kPmodld:
-        case Mnemonic::kPmodsw:
             return Format::kCFG;
 
-        case Mnemonic::kSload:
-        case Mnemonic::kSstore:
-            return Format::kMEM;
+        case Mnemonic::kPsync:
+            return Format::kSYNC;
 
-        case Mnemonic::kDmaMemToHpu:
-        case Mnemonic::kDmaHpuToMem:
+        case Mnemonic::kDload:
+        case Mnemonic::kDstore:
             return Format::kDMA;
     }
 
@@ -88,77 +83,47 @@ Format instruction_format(Mnemonic mnemonic) {
 std::string to_string(const Instruction& instruction) {
     std::ostringstream oss;
     oss << to_string(instruction.mnemonic);
-    if (instruction.interrupt_enable &&
-        (instruction.mnemonic == Mnemonic::kSstore ||
-         instruction.mnemonic == Mnemonic::kDmaMemToHpu ||
-         instruction.mnemonic == Mnemonic::kDmaHpuToMem)) {
-        oss << ".irq";
-    }
 
     switch (instruction_format(instruction.mnemonic)) {
-        case Format::kRRR:
-            if (instruction.mnemonic == Mnemonic::kPmov) {
-                oss << ' ' << format_preg(instruction.prs1)
-                    << ", " << format_preg(instruction.prd);
+        case Format::kAR3:
+            oss << ' ' << format_pobj(instruction.pdst)
+                << ", " << format_pobj(instruction.psrc1)
+                << ", ";
+            if (is_immediate_ar3(instruction.mnemonic)) {
+                oss << instruction.imm8;
             } else {
-                oss << ' ' << format_preg(instruction.prs1)
-                    << ", " << format_preg(instruction.prs2)
-                    << ", " << format_preg(instruction.prd);
-                if (instruction.mnemonic == Mnemonic::kPshuf2 && instruction.pshf >= 0) {
-                    oss << ", " << instruction.pshf;
-                }
+                oss << format_pobj(instruction.psrc2);
             }
+            break;
+
+        case Format::kSTG:
+            oss << ' ' << format_pobj(instruction.pdst)
+                << ", " << format_pobj(instruction.psrc1)
+                << ", " << instruction.idx0
+                << ", " << instruction.idx1
+                << ", " << static_cast<int>(instruction.mode);
             break;
 
         case Format::kCFG:
-            switch (instruction.mnemonic) {
-                case Mnemonic::kPbcast:
-                    oss << ' ' << format_creg(instruction.pcst)
-                        << ", " << format_preg(instruction.prd);
-                    break;
-                case Mnemonic::kPtwld:
-                    oss << ' ' << instruction.ptw;
-                    break;
-                case Mnemonic::kPtwid:
-                case Mnemonic::kPtwi2:
-                    break;
-                case Mnemonic::kPshcfg:
-                    oss << ' ' << instruction.pshf;
-                    break;
-                case Mnemonic::kPshuf:
-                    oss << ' ' << format_preg(instruction.prs1)
-                        << ", " << format_preg(instruction.prd);
-                    if (instruction.pshf >= 0) {
-                        oss << ", " << instruction.pshf;
-                    }
-                    break;
-                case Mnemonic::kPseed:
-                    oss << ' ' << instruction.pseedid;
-                    break;
-                case Mnemonic::kPsample:
-                    oss << ' ' << format_preg(instruction.prd);
-                    break;
-                case Mnemonic::kPmodld:
-                case Mnemonic::kPmodsw:
-                    oss << ' ' << instruction.pmod;
-                    break;
-                default:
-                    throw std::runtime_error("unexpected CFG mnemonic");
+            if (instruction.mnemonic == Mnemonic::kPseed) {
+                oss << ' ' << instruction.imm21;
+            } else {
+                oss << ' ' << format_pobj(instruction.idx0)
+                    << ", " << instruction.idx1
+                    << ", " << instruction.cfg;
             }
             break;
 
-        case Format::kMEM:
-            if (instruction.mnemonic == Mnemonic::kSload) {
-                oss << ' ' << instruction.saddr << ", " << format_preg(instruction.prd);
-            } else {
-                oss << ' ' << format_preg(instruction.prs1) << ", " << instruction.saddr;
-            }
+        case Format::kSYNC:
+            oss << ' ' << static_cast<int>(instruction.tag)
+                << ", " << static_cast<int>(instruction.mode);
             break;
 
         case Format::kDMA:
             oss << ' ' << format_xreg(instruction.rs1)
                 << ", " << format_xreg(instruction.rs2)
-                << ", " << format_xreg(instruction.rd);
+                << ", " << format_pobj(instruction.obj_id)
+                << ", " << static_cast<int>(instruction.type);
             break;
     }
 
