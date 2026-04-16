@@ -1,0 +1,32 @@
+# NTT 用例输入
+# 说明：
+# 1. 本样例对齐 ../inline-asm/main.cpp 的对象槽位分配。
+# 2. 文档当前没有固定公开 twiddle 常量和模上下文内部布局，因此这里给出接口级输入包。
+
+case_name: ntt_n64_reference
+function: NTT
+N: 64
+
+object_slots:
+  p0: input polynomial object
+  p1: ping-pong temporary object
+  p2: modulus context object
+  p3: shuffle configuration object
+
+slot_p0_coefficients:
+  0 1 2 3 4 5 6 7
+  8 9 10 11 12 13 14 15
+  16 17 18 19 20 21 22 23
+  24 25 26 27 28 29 30 31
+  32 33 34 35 36 37 38 39
+  40 41 42 43 44 45 46 47
+  48 49 50 51 52 53 54 55
+  56 57 58 59 60 61 62 63
+
+slot_p2_mod_context:
+  source: external object prepared before pmodld
+  note: should contain q and twiddle static parameters required by pntt
+
+slot_p3_shuffle_config:
+  source: external object prepared before pshcfg
+  note: should contain static shuffle configuration required by the NTT backend

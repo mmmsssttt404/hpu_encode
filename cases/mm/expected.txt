@@ -1,0 +1,11 @@
+# MM 用例期望结果
+
+case_name: mm_poly_mul_reference
+final_result_slot: p2
+sync_point: psync 0, 0
+
+operation:
+  p2[i] = (p0[i] * p1[i]) mod 257
+
+slot_p2_expected_coefficients:
+  8 14 18 20 20 18 14 8

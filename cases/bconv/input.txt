@@ -1,0 +1,32 @@
+# BCONV 用例输入
+
+case_name: bconv_q1_p1_reference
+function: BasisConversion
+num_q: 1
+num_p: 1
+modulus_q: 257
+modulus_p: 257
+
+object_slots:
+  p0: input object in q_0 basis
+  p1: temporary x_0 = a_0 * q_hat_inv_0 (mod q_0)
+  p2: output object in p_0 basis
+  p3: q_hat_inv_0 object
+  p4: q_hat_0 mod p_0 object
+  p5: modulus context object for q_0
+  p6: modulus context object for p_0
+
+slot_p0_coefficients:
+  1 2 3 4
+
+slot_p3_qhat_inv_0:
+  5 5 5 5
+
+slot_p4_qhat_0_mod_p0:
+  7 7 7 7
+
+slot_p5_mod_ctx_q0:
+  q: 257
+
+slot_p6_mod_ctx_p0:
+  q: 257

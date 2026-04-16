@@ -1,0 +1,21 @@
+# MM 用例输入
+
+case_name: mm_poly_mul_reference
+function: MM
+modulus_q: 257
+
+object_slots:
+  p0: input polynomial A
+  p1: input polynomial B
+  p2: output polynomial C
+  p3: modulus context object
+
+slot_p0_coefficients:
+  1 2 3 4 5 6 7 8
+
+slot_p1_coefficients:
+  8 7 6 5 4 3 2 1
+
+slot_p3_mod_context:
+  q: 257
+  note: q 足够大，本例不会发生模回绕

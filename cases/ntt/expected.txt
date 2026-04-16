@@ -1,0 +1,16 @@
+# NTT 用例期望结果
+
+case_name: ntt_n64_reference
+final_result_slot: p0
+sync_point: psync 0, 0
+
+validation_rules:
+  1. pmodld 必须首先装载 p2 对应的模上下文。
+  2. pshcfg 必须随后装载 p3 对应的 shuffle 配置。
+  3. 必须按 stage=0..5 顺序发射 6 条 pntt。
+  4. 由于 ping-pong 交换，最终结果对象应回到 p0。
+  5. 若已有软件参考模型，最终 p0 应等于 reference_ntt64(slot_p0_coefficients, mod_ctx=p2, shf_cfg=p3)。
+
+golden_coefficients:
+  pending: true
+  reason: current public docs do not freeze twiddle table and modulus-context layout

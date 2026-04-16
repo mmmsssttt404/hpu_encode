@@ -1,0 +1,17 @@
+# BCONV 用例期望结果
+
+case_name: bconv_q1_p1_reference
+final_result_slot: p2
+sync_point: psync 0, 0
+
+stage_1_rule:
+  p1[i] = (p0[i] * p3[i]) mod 257
+
+stage_1_expected_p1:
+  5 10 15 20
+
+stage_2_rule:
+  p2[i] = (p1[i] * p4[i]) mod 257
+
+slot_p2_expected_coefficients:
+  35 70 105 140
